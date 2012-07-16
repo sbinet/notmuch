@@ -77,7 +77,7 @@ func frequent_fullname(freqs frequencies) string {
 	return fullname
 }
 
-func addresses_by_frequency(msgs *notmuch.Messages, name string, pass uint, addr_to_realname *map[string]*frequencies) *frequencies {
+func addresses_by_frequency(msgs notmuch.Messages, name string, pass uint, addr_to_realname *map[string]*frequencies) *frequencies {
 
 	freqs := make(frequencies)
 
@@ -97,8 +97,7 @@ func addresses_by_frequency(msgs *notmuch.Messages, name string, pass uint, addr
 		headers = append(headers, "to", "cc", "bcc")
 	}
 
-	for ; msgs.Valid(); msgs.MoveToNext() {
-		msg := msgs.Get()
+	for _, msg := range msgs {
 		//println("==> msg [", msg.GetMessageId(), "]")
 		for _, header := range headers {
 			froms := strings.ToLower(msg.GetHeader(header))

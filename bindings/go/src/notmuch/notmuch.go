@@ -63,17 +63,15 @@ type Thread struct {
 	thread *C.notmuch_thread_t
 }
 
-type Messages struct {
-	messages *C.notmuch_messages_t
-}
-
 type Message struct {
 	message *C.notmuch_message_t
 }
+type Messages []Message
+// type Messages struct {
+// 	Elts []Message
+// }
 
-type Tags struct {
-	tags *C.notmuch_tags_t
-}
+type Tag string
 
 type Directory struct {
 	dir *C.notmuch_directory_t
@@ -86,8 +84,8 @@ type Filenames struct {
 type DatabaseMode C.notmuch_database_mode_t
 
 const (
-	DATABASE_MODE_READ_ONLY DatabaseMode = 0
-	DATABASE_MODE_READ_WRITE
+	DATABASE_MODE_READ_ONLY DatabaseMode = C.NOTMUCH_DATABASE_MODE_READ_ONLY
+	DATABASE_MODE_READ_WRITE DatabaseMode = C.NOTMUCH_DATABASE_MODE_READ_WRITE
 )
 
 // Create a new, empty notmuch database located at 'path'
@@ -334,12 +332,12 @@ func (self *Database) FindMessage(message_id string) (*Message, Status) {
  *
  * On error this function returns NULL.
  */
-func (self *Database) GetAllTags() *Tags {
-	tags := C.notmuch_database_get_all_tags(self.db)
-	if tags == nil {
-		return nil
+func (self *Database) GetAllTags() []Tag {
+	c_tags := C.notmuch_database_get_all_tags(self.db)
+	if c_tags == nil {
+		return []Tag{}
 	}
-	return &Tags{tags: tags}
+	return to_go_tags(c_tags)
 }
 
 /* Create a new query for 'database'.
@@ -500,12 +498,9 @@ func (self *Query) SearchThreads() *Threads {
  *
  * If a Xapian exception occurs this function will return NULL.
  */
-func (self *Query) SearchMessages() *Messages {
+func (self *Query) SearchMessages() Messages {
 	msgs := C.notmuch_query_search_messages(self.query)
-	if msgs == nil {
-		return nil
-	}
-	return &Messages{messages: msgs}
+	return to_go_msgs(msgs)
 }
 
 /* Destroy a notmuch_query_t along with any associated resources.
@@ -568,76 +563,88 @@ func (self *Threads) Destroy() {
 	}
 }
 
-/* Is the given 'messages' iterator pointing at a valid message.
- *
- * When this function returns TRUE, notmuch_messages_get will return a
- * valid object. Whereas when this function returns FALSE,
- * notmuch_messages_get will return NULL.
- *
- * See the documentation of notmuch_query_search_messages for example
- * code showing how to iterate over a notmuch_messages_t object.
- */
-func (self *Messages) Valid() bool {
-	if self.messages == nil {
+// Is the given 'messages' iterator pointing at a valid message.
+// 
+// When this function returns TRUE, notmuch_messages_get will return a
+// valid object. Whereas when this function returns FALSE,
+// notmuch_messages_get will return NULL.
+// 
+// See the documentation of notmuch_query_search_messages for example
+// code showing how to iterate over a notmuch_messages_t object.
+func notmuch_messages_valid(c_msgs *C.notmuch_messages_t) bool {
+	if c_msgs == nil {
 		return false
 	}
-	valid := C.notmuch_messages_valid(self.messages)
+	valid := C.notmuch_messages_valid(c_msgs)
 	if valid == 0 {
 		return false
 	}
 	return true
 }
 
-/* Get the current message from 'messages' as a notmuch_message_t.
- *
- * Note: The returned message belongs to 'messages' and has a lifetime
- * identical to it (and the query to which it belongs).
- *
- * See the documentation of notmuch_query_search_messages for example
- * code showing how to iterate over a notmuch_messages_t object.
- *
- * If an out-of-memory situation occurs, this function will return
- * NULL.
- */
-func (self *Messages) Get() *Message {
-	if self.messages == nil {
+// Get the current message from 'messages' as a notmuch_message_t.
+// 
+// Note: The returned message belongs to 'messages' and has a lifetime
+// identical to it (and the query to which it belongs).
+// 
+// See the documentation of notmuch_query_search_messages for example
+// code showing how to iterate over a notmuch_messages_t object.
+// 
+// If an out-of-memory situation occurs, this function will return
+// NULL.
+// 
+func notmuch_messages_get(messages *C.notmuch_messages_t) *Message {
+	if messages == nil {
 		return nil
 	}
-	msg := C.notmuch_messages_get(self.messages)
+	msg := C.notmuch_messages_get(messages)
 	if msg == nil {
 		return nil
 	}
 	return &Message{message: msg}
 }
 
-/* Move the 'messages' iterator to the next message.
- *
- * If 'messages' is already pointing at the last message then the
- * iterator will be moved to a point just beyond that last message,
- * (where notmuch_messages_valid will return FALSE and
- * notmuch_messages_get will return NULL).
- *
- * See the documentation of notmuch_query_search_messages for example
- * code showing how to iterate over a notmuch_messages_t object.
- */
-func (self *Messages) MoveToNext() {
-	if self.messages == nil {
+// Move the 'messages' iterator to the next message.
+// 
+// If 'messages' is already pointing at the last message then the
+// iterator will be moved to a point just beyond that last message,
+// (where notmuch_messages_valid will return FALSE and
+// notmuch_messages_get will return NULL).
+// 
+// See the documentation of notmuch_query_search_messages for example
+// code showing how to iterate over a notmuch_messages_t object.
+func notmuch_messages_move_to_next(messages *C.notmuch_messages_t) {
+	if messages == nil {
 		return
 	}
-	C.notmuch_messages_move_to_next(self.messages)
+	C.notmuch_messages_move_to_next(messages)
 }
 
-/* Destroy a notmuch_messages_t object.
- *
- * It's not strictly necessary to call this function. All memory from
- * the notmuch_messages_t object will be reclaimed when the containing
- * query object is destroyed.
- */
-func (self *Messages) Destroy() {
-	if self.messages != nil {
-		C.notmuch_messages_destroy(self.messages)
+// Destroy a notmuch_messages_t object.
+// 
+// It's not strictly necessary to call this function. All memory from
+// the notmuch_messages_t object will be reclaimed when the containing
+// query object is destroyed.
+func notmuch_messages_destroy(messages *C.notmuch_messages_t) {
+	if messages != nil {
+		C.notmuch_messages_destroy(messages)
 	}
 }
+
+// to_go_msgs converts a C-notmuch_messages_t structure into its Go equivalent
+// NOTE: takes ownership of the C structure
+func to_go_msgs(c_msgs *C.notmuch_messages_t) Messages {
+	msgs := []Message{}
+	for ; notmuch_messages_valid(c_msgs); notmuch_messages_move_to_next(c_msgs) {
+		msg := notmuch_messages_get(c_msgs)
+		if msg != nil {
+			msgs = append(msgs, *msg)
+		}
+	}
+	//C.notmuch_messages_destroy(c_msgs)
+	return Messages(msgs)
+}
+
 
 /* Return a list of tags from all messages.
  *
@@ -651,15 +658,28 @@ func (self *Messages) Destroy() {
  *
  * The function returns NULL on error.
  */
-func (self *Messages) CollectTags() *Tags {
-	if self.messages == nil {
-		return nil
+func (msgs Messages) CollectTags() []Tag {
+	tagset := map[Tag]struct{}{}
+	for _,msg := range msgs {
+		for _,tag := range msg.GetTags() {
+			tagset[tag] = struct{}{}
+		}
 	}
-	tags := C.notmuch_messages_collect_tags(self.messages)
-	if tags == nil {
-		return nil
+	tags := make([]Tag, 0, len(tagset))
+	for tag,_ := range tagset {
+		tags = append(tags, tag)
 	}
-	return &Tags{tags: tags}
+	return tags
+}
+
+// Destroy a notmuch_messages_t object.
+// 
+// It's not strictly necessary to call this function. All memory from
+// the notmuch_messages_t object will be reclaimed when the containing
+// query object is destroyed.
+func (msgs Messages) Destroy() {
+	// no-op...
+	// we should call notmuch_messages_destroy(...) but on what ?
 }
 
 /* Get the message ID of 'message'.
@@ -731,15 +751,12 @@ func (self *Message) GetThreadId() string {
  * NULL. (Note that notmuch_messages_valid will accept that NULL
  * value as legitimate, and simply return FALSE for it.)
  */
-func (self *Message) GetReplies() *Messages {
+func (self *Message) GetReplies() Messages {
 	if self.message == nil {
 		return nil
 	}
 	msgs := C.notmuch_message_get_replies(self.message)
-	if msgs == nil {
-		return nil
-	}
-	return &Messages{messages: msgs}
+	return to_go_msgs(msgs)
 }
 
 /* Get a filename for the email corresponding to 'message'.
@@ -862,15 +879,12 @@ func (self *Message) GetHeader(header string) string {
  * notmuch_tags_destroy function, but there's no good reason to call
  * it if the message is about to be destroyed).
  */
-func (self *Message) GetTags() *Tags {
+func (self *Message) GetTags() []Tag {
 	if self.message == nil {
 		return nil
 	}
 	tags := C.notmuch_message_get_tags(self.message)
-	if tags == nil {
-		return nil
-	}
-	return &Tags{tags: tags}
+	return to_go_tags(tags)
 }
 
 /* The longest possible tag value. */
@@ -1029,75 +1043,68 @@ func (self *Message) Destroy() {
 	C.notmuch_message_destroy(self.message)
 }
 
-/* Is the given 'tags' iterator pointing at a valid tag.
- *
- * When this function returns TRUE, notmuch_tags_get will return a
- * valid string. Whereas when this function returns FALSE,
- * notmuch_tags_get will return NULL.
- *
- * See the documentation of notmuch_message_get_tags for example code
- * showing how to iterate over a notmuch_tags_t object.
- */
-func (self *Tags) Valid() bool {
-	if self.tags == nil {
+// to_go_tags converts a C-notmuch_tags_t structure into its Go equivalent
+// NOTE: takes ownership of the C structure
+func to_go_tags(c_tags *C.notmuch_tags_t) []Tag {
+	tags := []Tag{}
+	for ; notmuch_tags_valid(c_tags); notmuch_tags_move_to_next(c_tags) {
+		tag := notmuch_tags_get(c_tags)
+		tags = append(tags, Tag(tag))
+	}
+	C.notmuch_tags_destroy(c_tags)
+	return tags
+}
+
+// Is the given 'tags' iterator pointing at a valid tag.
+//
+// When this function returns TRUE, notmuch_tags_get will return a
+// valid string. Whereas when this function returns FALSE,
+// notmuch_tags_get will return NULL.
+//
+// See the documentation of notmuch_message_get_tags for example code
+// showing how to iterate over a notmuch_tags_t object.
+func notmuch_tags_valid(tags *C.notmuch_tags_t) bool {
+	if tags == nil {
 		return false
 	}
-	v := C.notmuch_tags_valid(self.tags)
+	v := C.notmuch_tags_valid(tags)
 	if v == 0 {
 		return false
 	}
 	return true
 }
 
-/* Get the current tag from 'tags' as a string.
- *
- * Note: The returned string belongs to 'tags' and has a lifetime
- * identical to it (and the query to which it ultimately belongs).
- *
- * See the documentation of notmuch_message_get_tags for example code
- * showing how to iterate over a notmuch_tags_t object.
- */
-func (self *Tags) Get() string {
-	if self.tags == nil {
+// Get the current tag from 'tags' as a string.
+// 
+// Note: The returned string belongs to 'tags' and has a lifetime
+// identical to it (and the query to which it ultimately belongs).
+// 
+// See the documentation of notmuch_message_get_tags for example code
+// showing how to iterate over a notmuch_tags_t object.
+func notmuch_tags_get(tags *C.notmuch_tags_t) string {
+	if tags == nil {
 		return ""
 	}
-	s := C.notmuch_tags_get(self.tags)
+	s := C.notmuch_tags_get(tags)
 	// we dont own 's'
 
 	return C.GoString(s)
 }
-func (self *Tags) String() string {
-	return self.Get()
-}
 
-/* Move the 'tags' iterator to the next tag.
- *
- * If 'tags' is already pointing at the last tag then the iterator
- * will be moved to a point just beyond that last tag, (where
- * notmuch_tags_valid will return FALSE and notmuch_tags_get will
- * return NULL).
- *
- * See the documentation of notmuch_message_get_tags for example code
- * showing how to iterate over a notmuch_tags_t object.
- */
-func (self *Tags) MoveToNext() {
-	if self.tags == nil {
+// Move the 'tags' iterator to the next tag.
+//
+// If 'tags' is already pointing at the last tag then the iterator
+// will be moved to a point just beyond that last tag, (where
+// notmuch_tags_valid will return FALSE and notmuch_tags_get will
+// return NULL).
+//
+// See the documentation of notmuch_message_get_tags for example code
+// showing how to iterate over a notmuch_tags_t object.
+func notmuch_tags_move_to_next(tags *C.notmuch_tags_t) {
+	if tags == nil {
 		return
 	}
-	C.notmuch_tags_move_to_next(self.tags)
-}
-
-/* Destroy a notmuch_tags_t object.
- *
- * It's not strictly necessary to call this function. All memory from
- * the notmuch_tags_t object will be reclaimed when the containing
- * message or query objects are destroyed.
- */
-func (self *Tags) Destroy() {
-	if self.tags == nil {
-		return
-	}
-	C.notmuch_tags_destroy(self.tags)
+	C.notmuch_tags_move_to_next(tags)
 }
 
 // TODO: wrap notmuch_directory_<fct>
