@@ -7,7 +7,7 @@ export CGO_LDFLAGS ?= -L../../../../lib
 GO         ?= go
 GOFMT      ?= gofmt
 
-all: notmuch notmuch-addrlookup
+all: notmuch notmuch-addrlookup notmuch-mtag
 
 .PHONY: notmuch
 notmuch:
@@ -23,18 +23,25 @@ goconfig:
 notmuch-addrlookup: notmuch goconfig
 	$(GO) install notmuch-addrlookup
 
+.PHONY: notmuch-mtag
+notmuch-mtag: notmuch goconfig
+	$(GO) install notmuch-mtag
+
 .PHONY: format
 format:
 	$(GOFMT) -w=true $(GOFMT_OPTS) src/notmuch
 	$(GOFMT) -w=true $(GOFMT_OPTS) src/notmuch-addrlookup
+	$(GOFMT) -w=true $(GOFMT_OPTS) src/notmuch-mtag
 
 .PHONY: check-format
 check-format:
 	$(GOFMT) -d=true $(GOFMT_OPTS) src/notmuch
 	$(GOFMT) -d=true $(GOFMT_OPTS) src/notmuch-addrlookup
+	$(GOFMT) -d=true $(GOFMT_OPTS) src/notmuch-mtag
 
 .PHONY: clean
 clean:
 	$(GO) clean notmuch
 	$(GO) clean notmuch-addrlookup
+	$(GO) clean notmuch-mtag
 	rm -rf pkg bin
