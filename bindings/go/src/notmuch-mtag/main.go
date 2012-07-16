@@ -55,7 +55,6 @@ func main() {
 
 	flag.Parse()
 	log.Printf(":: notmuch-mtag...\n")
-	log.Printf("verbose:  %v\n", *g_verbose)
 
 	// honor NOTMUCH_CONFIG
 	home := os.Getenv("NOTMUCH_CONFIG")
@@ -77,6 +76,7 @@ func main() {
 		log.Fatalf("no field 'script' in section 'notmuch-mtag'")
 	}
 
+	log.Printf("verbose:   [%v]\n", *g_verbose)
 	log.Printf("db_path:   [%s]\n", db_path)
 	log.Printf("tag_fname: [%s]\n", tag_fname)
 
@@ -164,12 +164,12 @@ func main() {
 				switch tag_cmd[0] {
 					case '+':
 					if msg.AddTag(tag_cmd[1:]) != notmuch.STATUS_SUCCESS {
-						log.Printf("**errorr**\n")
+						log.Printf("**error**\n")
 						continue
 					}
 					case '-':
 					if msg.RemoveTag(tag_cmd[1:]) != notmuch.STATUS_SUCCESS {
-						log.Printf("**errorr**\n")
+						log.Printf("**error**\n")
 						continue
 					}
 				}
